@@ -1,16 +1,61 @@
 import * as cdk from 'aws-cdk-lib/core';
 import { Construct } from 'constructs';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
+import { StorageConstruct } from './constructs/storage.construct';
+import { QueuingConstruct } from './constructs/queuing.construct';
+import { MonitoringConstruct } from './constructs/monitoring.construct';
+import { ExtractionConstruct } from './constructs/extraction.construct';
 
 export class EobExtractorStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // The code that defines your stack goes here
+    // Get bucket name from CDK context (bucket-specialops-sandbox or bucket-specialops)
+    const bucketName = this.node.tryGetContext('bucketName') ?? 'bucket-specialops-sandbox';
 
-    // example resource
-    // const queue = new sqs.Queue(this, 'EobExtractorQueue', {
-    //   visibilityTimeout: cdk.Duration.seconds(300)
-    // });
+    // Storage: Import existing S3 bucket, create DynamoDB table, KMS keys
+    const storage = new StorageConstruct(this, 'Storage', { bucketName });
+
+    // Queuing: SQS ingest, review, and DLQ
+    const queuing = new QueuingConstruct(this, 'Queuing', {
+      encryptionKey: storage.phiKey,
+    });
+
+    // Monitoring: SNS topics, CloudWatch alarms
+    const monitoring = new MonitoringConstruct(this, 'Monitoring', {
+      encryptionKey: storage.auditKey,
+      dlq: queuing.dlq,
+      reviewQueue: queuing.reviewQueue,
+    });
+
+    // Extraction: Step Functions + all Lambdas + wiring
+    new ExtractionConstruct(this, 'Extraction', {
+      eobBucket: storage.eobBucket,
+      extractionsTable: storage.extractionsTable,
+      phiKey: storage.phiKey,
+      auditKey: storage.auditKey,
+      ingestQueue: queuing.ingestQueue,
+      reviewQueue: queuing.reviewQueue,
+      dlq: queuing.dlq,
+      opsAlertTopic: monitoring.opsAlertTopic,
+      reviewAlertTopic: monitoring.reviewAlertTopic,
+    });
+
+    // Tags for HIPAA compliance
+    cdk.Tags.of(this).add('Project', 'eob-extractor');
+    cdk.Tags.of(this).add('Environment', this.node.tryGetContext('environment') ?? 'sandbox');
+    cdk.Tags.of(this).add('Owner', 'engineering');
+    cdk.Tags.of(this).add('Compliance', 'hipaa');
+    cdk.Tags.of(this).add('ManagedBy', 'cdk');
+
+    // Outputs
+    new cdk.CfnOutput(this, 'ExtractionsTableName', {
+      value: storage.extractionsTable.tableName,
+    });
+    new cdk.CfnOutput(this, 'IngestQueueUrl', {
+      value: queuing.ingestQueue.queueUrl,
+    });
+    new cdk.CfnOutput(this, 'OpsAlertTopicArn', {
+      value: monitoring.opsAlertTopic.topicArn,
+    });
   }
 }

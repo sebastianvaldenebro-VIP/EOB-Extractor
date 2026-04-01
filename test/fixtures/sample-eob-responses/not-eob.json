@@ -1,0 +1,15 @@
+{
+  "is_eob": false,
+  "confidence_score": 0.98,
+  "extraction_notes": "This document appears to be a medical bill, not an Explanation of Benefits.",
+  "insurance_name": null,
+  "insurance_identifier": null,
+  "address": null,
+  "city": null,
+  "state": null,
+  "zip_code": null,
+  "location_state": null,
+  "arbitration_phone": null,
+  "arbitration_fax": null,
+  "arbitration_email": null
+}

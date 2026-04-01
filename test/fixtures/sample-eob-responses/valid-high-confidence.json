@@ -1,0 +1,15 @@
+{
+  "is_eob": true,
+  "confidence_score": 0.95,
+  "extraction_notes": null,
+  "insurance_name": "Blue Cross Blue Shield of Illinois",
+  "insurance_identifier": "BCBS-IL-60054",
+  "address": "123 Main St",
+  "city": "Chicago",
+  "state": "IL",
+  "zip_code": "60601",
+  "location_state": "IL",
+  "arbitration_phone": "1-800-555-0100",
+  "arbitration_fax": "1-800-555-0101",
+  "arbitration_email": "arbitration@bcbsil.com"
+}

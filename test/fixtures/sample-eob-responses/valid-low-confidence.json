@@ -1,0 +1,15 @@
+{
+  "is_eob": true,
+  "confidence_score": 0.62,
+  "extraction_notes": "Document quality is poor. Some fields may be inaccurate due to blurry text.",
+  "insurance_name": "Aetna",
+  "insurance_identifier": null,
+  "address": null,
+  "city": null,
+  "state": "NY",
+  "zip_code": null,
+  "location_state": null,
+  "arbitration_phone": null,
+  "arbitration_fax": null,
+  "arbitration_email": null
+}
