@@ -4,16 +4,23 @@ import { StorageConstruct } from './constructs/storage.construct';
 import { QueuingConstruct } from './constructs/queuing.construct';
 import { MonitoringConstruct } from './constructs/monitoring.construct';
 import { ExtractionConstruct } from './constructs/extraction.construct';
+import { DashboardConstruct } from './constructs/dashboard.construct';
 
 export class EobExtractorStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // Get bucket name from CDK context (bucket-specialops-sandbox or bucket-specialops)
+    // Get config from CDK context (varies per environment)
     const bucketName = this.node.tryGetContext('bucketName') ?? 'bucket-specialops-sandbox';
+    const contactsTableName = this.node.tryGetContext('contactsTable') ?? 'Insurance-Arbitration-contacts';
+    const environment = this.node.tryGetContext('environment') ?? 'sandbox';
+    const isProd = environment === 'production';
 
     // Storage: Import existing S3 bucket, create DynamoDB table, KMS keys
-    const storage = new StorageConstruct(this, 'Storage', { bucketName });
+    const storage = new StorageConstruct(this, 'Storage', {
+      bucketName,
+      isProd,
+    });
 
     // Queuing: SQS ingest, review, and DLQ
     const queuing = new QueuingConstruct(this, 'Queuing', {
@@ -28,9 +35,10 @@ export class EobExtractorStack extends cdk.Stack {
     });
 
     // Extraction: Step Functions + all Lambdas + wiring
-    new ExtractionConstruct(this, 'Extraction', {
+    const extraction = new ExtractionConstruct(this, 'Extraction', {
       eobBucket: storage.eobBucket,
       extractionsTable: storage.extractionsTable,
+      contactsTableName,
       phiKey: storage.phiKey,
       auditKey: storage.auditKey,
       ingestQueue: queuing.ingestQueue,
@@ -40,9 +48,17 @@ export class EobExtractorStack extends cdk.Stack {
       reviewAlertTopic: monitoring.reviewAlertTopic,
     });
 
+    // Dashboard: CloudWatch operational visibility
+    new DashboardConstruct(this, 'Dashboard', {
+      stateMachine: extraction.stateMachine,
+      ingestQueue: queuing.ingestQueue,
+      reviewQueue: queuing.reviewQueue,
+      dlq: queuing.dlq,
+    });
+
     // Tags for HIPAA compliance
     cdk.Tags.of(this).add('Project', 'eob-extractor');
-    cdk.Tags.of(this).add('Environment', this.node.tryGetContext('environment') ?? 'sandbox');
+    cdk.Tags.of(this).add('Environment', environment);
     cdk.Tags.of(this).add('Owner', 'engineering');
     cdk.Tags.of(this).add('Compliance', 'hipaa');
     cdk.Tags.of(this).add('ManagedBy', 'cdk');
@@ -56,6 +72,9 @@ export class EobExtractorStack extends cdk.Stack {
     });
     new cdk.CfnOutput(this, 'OpsAlertTopicArn', {
       value: monitoring.opsAlertTopic.topicArn,
+    });
+    new cdk.CfnOutput(this, 'ReviewAlertTopicArn', {
+      value: monitoring.reviewAlertTopic.topicArn,
     });
   }
 }

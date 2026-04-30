@@ -17,6 +17,18 @@
     ]
   },
   "context": {
+    "environments": {
+      "sandbox": {
+        "bucketName": "bucket-specialops-sandbox",
+        "contactsTable": "Insurance-Arbitration-contacts",
+        "environment": "sandbox"
+      },
+      "production": {
+        "bucketName": "bucket-specialops",
+        "contactsTable": "Insurance-Arbitration-Contacts",
+        "environment": "production"
+      }
+    },
     "@aws-cdk/aws-signer:signingProfileNamePassedToCfn": true,
     "@aws-cdk/aws-ecs-patterns:secGroupsDisablesImplicitOpenListener": true,
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,

@@ -7,6 +7,7 @@ import { Construct } from 'constructs';
 
 export interface StorageConstructProps {
   readonly bucketName: string;
+  readonly isProd: boolean;
 }
 
 export class StorageConstruct extends Construct {
@@ -20,13 +21,14 @@ export class StorageConstruct extends Construct {
     super(scope, id);
 
     const account = cdk.Stack.of(this).account;
+    const removalPolicy = props.isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY;
 
     // KMS key for PHI data (DynamoDB, S3 objects)
     this.phiKey = new kms.Key(this, 'PhiKey', {
       alias: 'eob-extractor/phi',
       description: 'Encrypts PHI data in DynamoDB and S3',
       enableKeyRotation: true,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy,
     });
 
     // KMS key for audit logs (CloudWatch, audit S3 bucket)
@@ -34,7 +36,7 @@ export class StorageConstruct extends Construct {
       alias: 'eob-extractor/audit',
       description: 'Encrypts audit logs in CloudWatch and S3',
       enableKeyRotation: true,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy,
     });
 
     // CloudWatch Logs needs permission to use the audit KMS key
@@ -70,7 +72,16 @@ export class StorageConstruct extends Construct {
       versioned: true,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       enforceSSL: true,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy,
+      lifecycleRules: [
+        {
+          id: 'transition-to-ia',
+          transitions: [
+            { storageClass: s3.StorageClass.INFREQUENT_ACCESS, transitionAfter: cdk.Duration.days(90) },
+            { storageClass: s3.StorageClass.GLACIER, transitionAfter: cdk.Duration.days(365) },
+          ],
+        },
+      ],
     });
 
     // DynamoDB table for EOB extractions
@@ -82,9 +93,10 @@ export class StorageConstruct extends Construct {
       encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
       encryptionKey: this.phiKey,
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
-      deletionProtection: false,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      deletionProtection: props.isProd,
+      removalPolicy,
       stream: dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
+      timeToLiveAttribute: 'ttl',
     });
 
     // GSI: Query by status (pending reviews, failures)

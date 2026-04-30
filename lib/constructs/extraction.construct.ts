@@ -18,6 +18,7 @@ import * as path from 'path';
 export interface ExtractionConstructProps {
   readonly eobBucket: s3.IBucket;
   readonly extractionsTable: dynamodb.Table;
+  readonly contactsTableName: string;
   readonly phiKey: kms.Key;
   readonly auditKey: kms.Key;
   readonly ingestQueue: sqs.Queue;
@@ -81,6 +82,7 @@ export class ExtractionConstruct extends Construct {
       handler: 'handler',
       timeout: cdk.Duration.seconds(60),
       memorySize: 512,
+      reservedConcurrentExecutions: 10,
       environment: {
         BUCKET_NAME: props.eobBucket.bucketName,
       },
@@ -110,6 +112,7 @@ export class ExtractionConstruct extends Construct {
       handler: 'handler',
       timeout: cdk.Duration.seconds(300),
       memorySize: 1024,
+      reservedConcurrentExecutions: 10,
       environment: {
         BUCKET_NAME: props.eobBucket.bucketName,
       },
@@ -152,7 +155,7 @@ export class ExtractionConstruct extends Construct {
       timeout: cdk.Duration.seconds(30),
       memorySize: 512,
       environment: {
-        CONTACTS_TABLE_NAME: 'Insurance-Arbitration-contacts',
+        CONTACTS_TABLE_NAME: props.contactsTableName,
         NOTIFY_TOPIC_ARN: props.reviewAlertTopic.topicArn,
       },
     });
@@ -161,8 +164,8 @@ export class ExtractionConstruct extends Construct {
     lookupInsuranceFn.addToRolePolicy(new iam.PolicyStatement({
       actions: ['dynamodb:Query', 'dynamodb:PutItem'],
       resources: [
-        `arn:aws:dynamodb:${stack.region}:${stack.account}:table/Insurance-Arbitration-contacts`,
-        `arn:aws:dynamodb:${stack.region}:${stack.account}:table/Insurance-Arbitration-contacts/index/*`,
+        `arn:aws:dynamodb:${stack.region}:${stack.account}:table/${props.contactsTableName}`,
+        `arn:aws:dynamodb:${stack.region}:${stack.account}:table/${props.contactsTableName}/index/*`,
       ],
     }));
     props.reviewAlertTopic.grantPublish(lookupInsuranceFn);
@@ -208,9 +211,10 @@ export class ExtractionConstruct extends Construct {
       retryOnServiceExceptions: true,
     });
     classifyEobTask.addRetry({
-      errors: ['AllModelsExhaustedException'],
-      maxAttempts: 1,
+      errors: ['AllModelsExhaustedException', 'ThrottlingException', 'ServiceUnavailableException'],
+      maxAttempts: 3,
       interval: cdk.Duration.seconds(5),
+      backoffRate: 2,
     });
 
     // Task: ExtractEOB
@@ -220,9 +224,10 @@ export class ExtractionConstruct extends Construct {
       retryOnServiceExceptions: true,
     });
     extractEobTask.addRetry({
-      errors: ['AllModelsExhaustedException'],
-      maxAttempts: 1,
+      errors: ['AllModelsExhaustedException', 'ThrottlingException', 'ServiceUnavailableException'],
+      maxAttempts: 3,
       interval: cdk.Duration.seconds(10),
+      backoffRate: 2,
     });
 
     // Task: ValidateData
@@ -320,7 +325,6 @@ export class ExtractionConstruct extends Construct {
       logGroupName: '/aws/stepfunctions/eob-extractor',
       retention: logs.RetentionDays.SIX_YEARS,
       encryptionKey: props.auditKey,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     this.stateMachine = new sfn.StateMachine(this, 'EobExtractionSM', {
