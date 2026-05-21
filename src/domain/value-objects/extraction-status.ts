@@ -12,5 +12,8 @@ export function extractionStatusFromConfidence(score: ConfidenceScore): Extracti
   if (score.isHighConfidence()) {
     return ExtractionStatus.EXTRACTED;
   }
-  return ExtractionStatus.REVIEW_PENDING;
+  if (score.isMediumConfidence()) {
+    return ExtractionStatus.REVIEW_PENDING;
+  }
+  return ExtractionStatus.FAILED;
 }

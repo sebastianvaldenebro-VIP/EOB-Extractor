@@ -1,4 +1,4 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 import { logEvent, logError } from '../infrastructure/logging/audit-logger';
@@ -6,12 +6,12 @@ import type { EobExtractionResponse } from '../application/schemas/eob-extractio
 
 const CONTACTS_TABLE = process.env.CONTACTS_TABLE_NAME ?? 'Insurance-Arbitration-contacts';
 const CONTACTS_GSI = 'GSI-InsuranceName-LocationState';
-const NOTIFY_TOPIC_ARN = process.env.NOTIFY_TOPIC_ARN ?? '';
 
-const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
-  marshallOptions: { removeUndefinedValues: true },
-});
-const snsClient = new SNSClient({});
+export interface LookupInsuranceDeps {
+  readonly queryContact: (insuranceName: string, locationState: string) => Promise<Record<string, unknown> | undefined>;
+  readonly createContact: (item: Record<string, unknown>) => Promise<void>;
+  readonly publishNotification: (topicArn: string, subject: string, message: string) => Promise<void>;
+}
 
 interface LookupInput {
   readonly bucket: string;
@@ -36,7 +36,6 @@ interface LookupOutput extends LookupInput {
   readonly contactRecord: Record<string, string> | null;
 }
 
-/** Fields to compare between extracted data and the contacts table. */
 const COMPARE_FIELDS: Array<{ extracted: keyof EobExtractionResponse; contact: string }> = [
   { extracted: 'address', contact: 'Address' },
   { extracted: 'arbitration_email', contact: 'ArbitrationEmail' },
@@ -61,9 +60,7 @@ function compareFields(
     const extractedVal = normalize(extracted[extractedKey] as string | null);
     const contactVal = normalize(contact[contactKey] as string | null);
 
-    // Skip comparison if both are empty
     if (!extractedVal && !contactVal) continue;
-    // Skip if extracted is empty (we don't have data to compare)
     if (!extractedVal) continue;
 
     if (extractedVal !== contactVal) {
@@ -77,150 +74,167 @@ function compareFields(
 function buildInsuranceKey(extracted: EobExtractionResponse): string {
   const loc = extracted.location_state ?? '';
   const name = extracted.insurance_name ?? '';
-  return `*${loc} - ${name} (PPO)`;
+  return `*${loc} - ${name}`;
 }
 
-export async function handler(event: LookupInput): Promise<LookupOutput> {
-  const { correlationId, taskId, key } = event;
-  const extracted = event.validatedExtraction;
+export function createHandler(deps: LookupInsuranceDeps) {
+  return async function handler(event: LookupInput): Promise<LookupOutput> {
+    const { correlationId, taskId, key } = event;
+    const extracted = event.validatedExtraction;
 
-  logEvent(correlationId, 'lookup_insurance_start', 'INFO', {
-    taskId,
-    insuranceName: extracted.insurance_name,
-    locationState: extracted.location_state,
-  });
+    logEvent(correlationId, 'lookup_insurance_start', 'INFO', {
+      taskId,
+      insuranceName: extracted.insurance_name,
+      locationState: extracted.location_state,
+    });
 
-  try {
-    const insuranceName = extracted.insurance_name ?? 'UNKNOWN';
-    const locationState = extracted.location_state || 'UNKNOWN';
+    try {
+      const notifyTopicArn = process.env.NOTIFY_TOPIC_ARN ?? '';
+      const insuranceName = extracted.insurance_name ?? 'UNKNOWN';
+      const locationState = extracted.location_state || 'UNKNOWN';
 
-    // Query contacts table by InsuranceName + LocationState
-    const queryResult = await ddbClient.send(new QueryCommand({
-      TableName: CONTACTS_TABLE,
-      IndexName: CONTACTS_GSI,
-      KeyConditionExpression: 'InsuranceName = :name AND LocationState = :state',
-      ExpressionAttributeValues: {
-        ':name': insuranceName,
-        ':state': locationState,
-      },
-    }));
+      const existingContact = await deps.queryContact(insuranceName, locationState);
 
-    const existingContact = queryResult.Items?.[0] as Record<string, unknown> | undefined;
+      if (!existingContact) {
+        const newInsuranceKey = buildInsuranceKey(extracted);
 
-    // --- NO MATCH: Create new record in contacts table ---
-    if (!existingContact) {
-      const newInsuranceKey = buildInsuranceKey(extracted);
+        try {
+          await deps.createContact({
+            Insurance: newInsuranceKey,
+            InsuranceName: insuranceName,
+            LocationState: locationState,
+            Address: extracted.address ?? '',
+            ArbitrationEmail: extracted.arbitration_email ?? '',
+            ArbitrationFax: extracted.arbitration_fax ?? '',
+            ArbitrationPhone: extracted.arbitration_phone ?? '',
+            City: extracted.city ?? '',
+            State: extracted.state ?? '',
+            ZipCode: extracted.zip_code ?? '',
+          });
 
-      await ddbClient.send(new PutCommand({
-        TableName: CONTACTS_TABLE,
-        Item: {
-          Insurance: newInsuranceKey,
-          InsuranceName: insuranceName,
-          LocationState: locationState,
-          Address: extracted.address ?? '',
-          ArbitrationEmail: extracted.arbitration_email ?? '',
-          ArbitrationFax: extracted.arbitration_fax ?? '',
-          ArbitrationPhone: extracted.arbitration_phone ?? '',
-          City: extracted.city ?? '',
-          State: extracted.state ?? '',
-          ZipCode: extracted.zip_code ?? '',
-        },
-        ConditionExpression: 'attribute_not_exists(Insurance)',
-      }));
+          if (notifyTopicArn) {
+            await deps.publishNotification(
+              notifyTopicArn,
+              `New Insurance Contact: ${extracted.insurance_name}`,
+              JSON.stringify({
+                event: 'new_insurance_contact',
+                taskId,
+                correlationId,
+                insuranceName: extracted.insurance_name,
+                locationState: extracted.location_state,
+                s3Key: key,
+                missingFields: event.missingFields,
+                extractedFields: {
+                  address: extracted.address,
+                  city: extracted.city,
+                  state: extracted.state,
+                  zipCode: extracted.zip_code,
+                  arbitrationPhone: extracted.arbitration_phone,
+                  arbitrationFax: extracted.arbitration_fax,
+                  arbitrationEmail: extracted.arbitration_email,
+                },
+              }, null, 2),
+            );
+          }
 
-      if (NOTIFY_TOPIC_ARN) {
-        await snsClient.send(new PublishCommand({
-          TopicArn: NOTIFY_TOPIC_ARN,
-          Subject: `New Insurance Contact: ${extracted.insurance_name}`,
-          Message: JSON.stringify({
-            event: 'new_insurance_contact',
+          logEvent(correlationId, 'lookup_insurance_new', 'INFO', {
             taskId,
-            correlationId,
             insuranceName: extracted.insurance_name,
             locationState: extracted.location_state,
-            s3Key: key,
-            missingFields: event.missingFields,
-            extractedFields: {
-              address: extracted.address,
-              city: extracted.city,
-              state: extracted.state,
-              zipCode: extracted.zip_code,
-              arbitrationPhone: extracted.arbitration_phone,
-              arbitrationFax: extracted.arbitration_fax,
-              arbitrationEmail: extracted.arbitration_email,
-            },
-          }, null, 2),
-        }));
+          });
+        } catch (putError: unknown) {
+          if (!(putError instanceof ConditionalCheckFailedException)) throw putError;
+          // Concurrent execution already wrote this contact — treat as no-op
+          logEvent(correlationId, 'lookup_insurance_new_concurrent_skip', 'INFO', { taskId });
+        }
+
+        return { ...event, lookupResult: 'NEW', mismatches: [], contactRecord: null };
       }
 
-      logEvent(correlationId, 'lookup_insurance_new', 'INFO', {
-        taskId,
-        insuranceName: extracted.insurance_name,
-        locationState: extracted.location_state,
-      });
+      const mismatches = compareFields(extracted, existingContact);
 
-      return { ...event, lookupResult: 'NEW', mismatches: [], contactRecord: null };
-    }
+      if (mismatches.length > 0) {
+        if (notifyTopicArn) {
+          await deps.publishNotification(
+            notifyTopicArn,
+            `Insurance Contact Mismatch: ${extracted.insurance_name}`,
+            JSON.stringify({
+              event: 'insurance_contact_mismatch',
+              taskId,
+              correlationId,
+              insuranceName: extracted.insurance_name,
+              locationState: extracted.location_state,
+              existingInsuranceKey: existingContact.Insurance,
+              s3Key: key,
+              missingFields: event.missingFields,
+              mismatches,
+            }, null, 2),
+          );
+        }
 
-    // --- MATCH FOUND: Compare fields ---
-    const mismatches = compareFields(extracted, existingContact);
+        logEvent(correlationId, 'lookup_insurance_mismatch', 'WARN', {
+          taskId,
+          insuranceName: extracted.insurance_name,
+          mismatchCount: mismatches.length,
+        });
 
-    if (mismatches.length > 0) {
-      // MISMATCH: fields differ — notify
-      if (NOTIFY_TOPIC_ARN) {
-        await snsClient.send(new PublishCommand({
-          TopicArn: NOTIFY_TOPIC_ARN,
-          Subject: `Insurance Contact Mismatch: ${extracted.insurance_name}`,
-          Message: JSON.stringify({
-            event: 'insurance_contact_mismatch',
-            taskId,
-            correlationId,
-            insuranceName: extracted.insurance_name,
-            locationState: extracted.location_state,
-            existingInsuranceKey: existingContact.Insurance,
-            s3Key: key,
-            missingFields: event.missingFields,
-            mismatches,
-          }, null, 2),
-        }));
+        return {
+          ...event,
+          lookupResult: 'MISMATCH',
+          mismatches,
+          contactRecord: existingContact as Record<string, string>,
+        };
       }
 
-      logEvent(correlationId, 'lookup_insurance_mismatch', 'WARN', {
+      logEvent(correlationId, 'lookup_insurance_match', 'INFO', {
         taskId,
         insuranceName: extracted.insurance_name,
-        mismatchCount: mismatches.length,
+        existingInsuranceKey: existingContact.Insurance,
       });
 
       return {
         ...event,
-        lookupResult: 'MISMATCH',
-        mismatches,
+        lookupResult: 'MATCH',
+        mismatches: [],
         contactRecord: existingContact as Record<string, string>,
       };
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logError({
+        correlationId,
+        errorMessage: err.message,
+        errorName: err.name,
+        s3Key: key,
+        taskId,
+      });
+      throw error;
     }
-
-    // --- MATCH: all fields match — good to go
-    logEvent(correlationId, 'lookup_insurance_match', 'INFO', {
-      taskId,
-      insuranceName: extracted.insurance_name,
-      existingInsuranceKey: existingContact.Insurance,
-    });
-
-    return {
-      ...event,
-      lookupResult: 'MATCH',
-      mismatches: [],
-      contactRecord: existingContact as Record<string, string>,
-    };
-  } catch (error: unknown) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    logError({
-      correlationId,
-      errorMessage: err.message,
-      errorName: err.name,
-      s3Key: key,
-      taskId,
-    });
-    throw error;
-  }
+  };
 }
+
+const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
+  marshallOptions: { removeUndefinedValues: true },
+});
+const snsClient = new SNSClient({});
+
+export const handler = createHandler({
+  queryContact: async (insuranceName, locationState) => {
+    const result = await ddbClient.send(new QueryCommand({
+      TableName: CONTACTS_TABLE,
+      IndexName: CONTACTS_GSI,
+      KeyConditionExpression: 'InsuranceName = :name AND LocationState = :state',
+      ExpressionAttributeValues: { ':name': insuranceName, ':state': locationState },
+    }));
+    return result.Items?.[0] as Record<string, unknown> | undefined;
+  },
+  createContact: async (item) => {
+    await ddbClient.send(new PutCommand({
+      TableName: CONTACTS_TABLE,
+      Item: item,
+      ConditionExpression: 'attribute_not_exists(Insurance)',
+    }));
+  },
+  publishNotification: async (topicArn, subject, message) => {
+    await snsClient.send(new PublishCommand({ TopicArn: topicArn, Subject: subject, Message: message }));
+  },
+});

@@ -10,7 +10,7 @@ export const CLASSIFY_CHAIN: readonly string[] = [
   'us.anthropic.claude-sonnet-4-20250514-v1:0',
 ];
 
-/** Extraction: Opus-first for accuracy on structured data, then Sonnet, then Haiku. */
+/** Extraction: Sonnet 4.6 primary for accuracy, Sonnet 4.0 fallback, Haiku last resort. */
 export const EXTRACT_CHAIN: readonly string[] = [
   'us.anthropic.claude-sonnet-4-6',
   'us.anthropic.claude-sonnet-4-20250514-v1:0',

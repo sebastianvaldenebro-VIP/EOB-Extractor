@@ -7,6 +7,12 @@ const app = new cdk.App();
 
 const account = process.env.CDK_DEFAULT_ACCOUNT ?? app.node.tryGetContext('account');
 
+if (!account) {
+  throw new Error(
+    'AWS account ID is required. Set CDK_DEFAULT_ACCOUNT or pass -c account=<id>',
+  );
+}
+
 const stack = new EobExtractorStack(app, 'EobExtractorStack', {
   env: {
     account,
@@ -19,11 +25,9 @@ const stack = new EobExtractorStack(app, 'EobExtractorStack', {
   }),
 });
 
-// Attach EngineeringPermissionBoundary to ALL IAM roles (including CDK auto-generated)
-if (account) {
-  cdk.Aspects.of(app).add(
-    new PermissionBoundaryAspect(
-      `arn:aws:iam::${account}:policy/EngineeringPermissionBoundary`,
-    ),
-  );
-}
+// EngineeringPermissionBoundary is mandatory — the guard above ensures account is always set
+cdk.Aspects.of(app).add(
+  new PermissionBoundaryAspect(
+    `arn:aws:iam::${account}:policy/EngineeringPermissionBoundary`,
+  ),
+);

@@ -1,4 +1,4 @@
-import { readPdf } from '../infrastructure/storage/s3-pdf-reader';
+import { readPdf, sanitizeForPrompt } from '../infrastructure/storage/s3-pdf-reader';
 import { invokeWithFallback, EXTRACT_CHAIN } from '../infrastructure/bedrock/model-fallback';
 import type { BedrockMessage } from '../infrastructure/bedrock/bedrock-client';
 import { EOB_EXTRACTION_SYSTEM_PROMPT } from '../application/prompts/system-prompt';
@@ -40,8 +40,8 @@ export async function handler(event: ExtractInput): Promise<ExtractOutput> {
     const pdfBase64 = buffer.toString('base64');
 
     const classificationContext: ClassificationContext = {
-      insurerName: classification.insurer_name ?? null,
-      insurerIdentifier: classification.insurer_identifier ?? null,
+      insurerName: classification.insurer_name ? sanitizeForPrompt(classification.insurer_name) : null,
+      insurerIdentifier: classification.insurer_identifier ? sanitizeForPrompt(classification.insurer_identifier) : null,
       documentType: classification.document_type ?? 'unknown',
     };
 

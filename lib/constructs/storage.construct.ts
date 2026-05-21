@@ -122,5 +122,12 @@ export class StorageConstruct extends Construct {
       sortKey: { name: 'extractedAt', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
     });
+
+    // GSI: O(1) deduplication check by S3 object key
+    this.extractionsTable.addGlobalSecondaryIndex({
+      indexName: 'GSI-S3Key',
+      partitionKey: { name: 's3Key', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.KEYS_ONLY,
+    });
   }
 }

@@ -62,6 +62,7 @@ export class EobExtractorStack extends cdk.Stack {
     cdk.Tags.of(this).add('Owner', 'engineering');
     cdk.Tags.of(this).add('Compliance', 'hipaa');
     cdk.Tags.of(this).add('ManagedBy', 'cdk');
+    cdk.Tags.of(this).add('CostCenter', this.node.tryGetContext('costCenter') ?? 'engineering');
 
     // Outputs
     new cdk.CfnOutput(this, 'ExtractionsTableName', {

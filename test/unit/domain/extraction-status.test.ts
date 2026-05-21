@@ -20,9 +20,9 @@ describe('extractionStatusFromConfidence', () => {
     expect(extractionStatusFromConfidence(score)).toBe(ExtractionStatus.REVIEW_PENDING);
   });
 
-  it('maps LOW confidence to REVIEW_PENDING', () => {
+  it('maps LOW confidence to FAILED', () => {
     const score = ConfidenceScore.fromNumber(0.30);
-    expect(extractionStatusFromConfidence(score)).toBe(ExtractionStatus.REVIEW_PENDING);
+    expect(extractionStatusFromConfidence(score)).toBe(ExtractionStatus.FAILED);
   });
 
   it('maps 0.50 boundary to REVIEW_PENDING', () => {
@@ -30,8 +30,13 @@ describe('extractionStatusFromConfidence', () => {
     expect(extractionStatusFromConfidence(score)).toBe(ExtractionStatus.REVIEW_PENDING);
   });
 
-  it('maps 0.0 to REVIEW_PENDING', () => {
+  it('maps 0.0 to FAILED', () => {
     const score = ConfidenceScore.fromNumber(0.0);
-    expect(extractionStatusFromConfidence(score)).toBe(ExtractionStatus.REVIEW_PENDING);
+    expect(extractionStatusFromConfidence(score)).toBe(ExtractionStatus.FAILED);
+  });
+
+  it('maps score just below 0.50 to FAILED', () => {
+    const score = ConfidenceScore.fromNumber(0.49);
+    expect(extractionStatusFromConfidence(score)).toBe(ExtractionStatus.FAILED);
   });
 });

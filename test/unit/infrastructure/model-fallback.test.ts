@@ -44,8 +44,9 @@ describe('invokeWithFallback', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => {});
-    // Speed up retries by mocking setTimeout
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    // Use fake timers and eliminate random jitter for deterministic tests
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0);
   });
 
   afterEach(() => {
@@ -89,20 +90,18 @@ describe('invokeWithFallback', () => {
       .mockRejectedValueOnce(makeTransientThrottleError())
       .mockResolvedValueOnce(expected);
 
-    const result = await invokeWithFallback(TEST_CHAIN, TEST_MESSAGES, TEST_SYSTEM);
+    const promise = invokeWithFallback(TEST_CHAIN, TEST_MESSAGES, TEST_SYSTEM);
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
     expect(result.modelId).toBe('model-primary');
     expect(result.response).toBe(expected);
-    // First attempt failed, then retry succeeded
     expect(mockInvokeModel).toHaveBeenCalledTimes(2);
-    // Both calls used the primary model
     expect(mockInvokeModel.mock.calls[0][0]).toBe('model-primary');
     expect(mockInvokeModel.mock.calls[1][0]).toBe('model-primary');
   });
 
   it('throws AllModelsExhaustedException when all models fail', async () => {
-    // Primary: daily quota
-    // Secondary: daily quota
     mockInvokeModel
       .mockRejectedValueOnce(makeDailyQuotaError())
       .mockRejectedValueOnce(makeDailyQuotaError());
@@ -120,21 +119,22 @@ describe('invokeWithFallback', () => {
       invokeWithFallback(TEST_CHAIN, TEST_MESSAGES, TEST_SYSTEM),
     ).rejects.toThrow('ValidationException: Invalid input');
 
-    // Only one call — no retry, no fallback
     expect(mockInvokeModel).toHaveBeenCalledTimes(1);
   });
 
   it('exhausts transient retries then moves to next model', async () => {
     const expected = makeSuccessResult();
-    // Primary: 3 transient throttles (1 initial + 2 retries = max)
+    // Primary: 3 transient throttles (1 initial + 2 retries = MAX_TRANSIENT_RETRIES)
     // Secondary: success
     mockInvokeModel
       .mockRejectedValueOnce(makeTransientThrottleError()) // attempt 1
       .mockRejectedValueOnce(makeTransientThrottleError()) // retry 1
       .mockRejectedValueOnce(makeTransientThrottleError()) // retry 2 (max reached)
-      .mockResolvedValueOnce(expected);                      // secondary succeeds
+      .mockResolvedValueOnce(expected);                     // secondary succeeds
 
-    const result = await invokeWithFallback(TEST_CHAIN, TEST_MESSAGES, TEST_SYSTEM);
+    const promise = invokeWithFallback(TEST_CHAIN, TEST_MESSAGES, TEST_SYSTEM);
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
     expect(result.modelId).toBe('model-secondary');
     expect(mockInvokeModel).toHaveBeenCalledTimes(4);

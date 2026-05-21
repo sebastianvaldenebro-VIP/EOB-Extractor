@@ -2,7 +2,6 @@ import {
   DynamoDBDocumentClient,
   PutCommand,
   QueryCommand,
-  ScanCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { EobExtraction } from '../../domain/entities/eob-extraction';
@@ -120,14 +119,15 @@ export class DynamoDbEobRepository implements EobExtractionRepository {
 
   async existsByS3Key(s3Key: string): Promise<boolean> {
     const result = await docClient.send(
-      new ScanCommand({
+      new QueryCommand({
         TableName: TABLE_NAME,
-        FilterExpression: 's3Key = :s3Key',
+        IndexName: 'GSI-S3Key',
+        KeyConditionExpression: 's3Key = :s3Key',
         ExpressionAttributeValues: { ':s3Key': s3Key },
         Limit: 1,
-        ProjectionExpression: 'PK',
+        Select: 'COUNT',
       }),
     );
-    return (result.Items?.length ?? 0) > 0;
+    return (result.Count ?? 0) > 0;
   }
 }

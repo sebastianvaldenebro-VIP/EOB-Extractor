@@ -53,7 +53,36 @@ export async function handler(event: ClassifyInput): Promise<ClassifyOutput> {
       EOB_CLASSIFICATION_SYSTEM_PROMPT,
     );
 
-    const classification = JSON.parse(response.text) as Record<string, unknown>;
+    let classification: Record<string, unknown>;
+    try {
+      classification = JSON.parse(response.text) as Record<string, unknown>;
+    } catch {
+      logEvent(correlationId, 'classify_eob_json_retry', 'WARN', { taskId, modelId });
+
+      const retryMessages: BedrockMessage[] = [
+        ...messages,
+        {
+          role: 'assistant',
+          content: [{ type: 'text', text: response.text }],
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Your previous response was not valid JSON. Return ONLY a valid JSON object matching the schema. No markdown, no explanation, no code fences.',
+            },
+          ],
+        },
+      ];
+
+      const retryResult = await invokeWithFallback(
+        CLASSIFY_CHAIN,
+        retryMessages,
+        EOB_CLASSIFICATION_SYSTEM_PROMPT,
+      );
+      classification = JSON.parse(retryResult.response.text) as Record<string, unknown>;
+    }
 
     logEvent(correlationId, 'classify_eob_complete', 'INFO', {
       taskId,

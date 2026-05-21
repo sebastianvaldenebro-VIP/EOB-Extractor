@@ -42,9 +42,24 @@ export async function handler(event: ValidateDataInput): Promise<ValidateDataOut
       });
 
       // Even on schema failure, pass through with low confidence — don't block
+      const zeroedExtraction: EobExtractionResponse = {
+        is_eob: false,
+        confidence_score: 0.1,
+        extraction_notes: null,
+        insurance_name: null,
+        insurance_identifier: null,
+        address: null,
+        city: null,
+        state: null,
+        zip_code: null,
+        location_state: null,
+        arbitration_phone: null,
+        arbitration_fax: null,
+        arbitration_email: null,
+      };
       return {
         ...event,
-        validatedExtraction: rawExtraction as EobExtractionResponse,
+        validatedExtraction: zeroedExtraction,
         confidenceScore: 0.1,
         missingFields: [],
         warnings: schemaErrors,
