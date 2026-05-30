@@ -9,7 +9,7 @@ import { EobExtractionRepository } from '../../domain/repositories/eob-extractio
 import { ConfidenceScore } from '../../domain/value-objects/confidence-score';
 import { ExtractionStatus } from '../../domain/value-objects/extraction-status';
 
-const TABLE_NAME = process.env.EOB_TABLE_NAME ?? 'eob-extractions';
+const TABLE_NAME = process.env.TABLE_NAME ?? 'eob-extractions';
 
 function metaPK(taskId: string): string {
   return `TASK#${taskId}`;
