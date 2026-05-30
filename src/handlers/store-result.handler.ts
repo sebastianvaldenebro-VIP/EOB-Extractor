@@ -56,7 +56,7 @@ export function createHandler(deps: StoreResultDeps) {
         key,
         versionId || null,
         confidenceScore,
-        event.extraction,
+        JSON.stringify(event.validatedExtraction),
         extractModelId,
         JSON.stringify(event.classification),
         processingDurationMs,
