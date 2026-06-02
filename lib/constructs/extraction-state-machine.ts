@@ -69,6 +69,13 @@ export function createExtractionStateMachine(
     retryOnServiceExceptions: true,
   });
 
+  // Separate state for schema validation failures — keeps isValid flag live and meaningful
+  const storeInvalidTask = new tasks.LambdaInvoke(scope, 'StoreInvalid', {
+    lambdaFunction: fns.storeResultFn,
+    outputPath: '$.Payload',
+    retryOnServiceExceptions: true,
+  });
+
   const lookupInsuranceTask = new tasks.LambdaInvoke(scope, 'LookupInsurance', {
     lambdaFunction: fns.lookupInsuranceFn,
     outputPath: '$.Payload',
@@ -106,9 +113,16 @@ export function createExtractionStateMachine(
     )
     .otherwise(storeFailedTask.next(extractionComplete));
 
+  // isValid gate: schema failures short-circuit to StoreFailed before confidence routing.
+  // When isValid:false, confidenceScore is already 0.1 (set by validate-data handler),
+  // but checking isValid explicitly makes the intent clear and guards against future drift.
+  const checkIsValid = new sfn.Choice(scope, 'CheckIsValid')
+    .when(sfn.Condition.booleanEquals('$.isValid', false), storeInvalidTask.next(extractionComplete))
+    .otherwise(routeByConfidence);
+
   const definition = validatePdfTask.next(isPdfValid);
   classifyEobTask.next(isDocumentEob);
-  extractEobTask.next(validateDataTask).next(routeByConfidence);
+  extractEobTask.next(validateDataTask).next(checkIsValid);
 
   const sfnLogGroup = new logs.LogGroup(scope, 'SfnLogGroup', {
     logGroupName: '/aws/stepfunctions/eob-extractor',

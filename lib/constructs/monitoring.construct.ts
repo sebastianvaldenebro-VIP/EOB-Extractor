@@ -12,6 +12,7 @@ export interface MonitoringConstructProps {
   readonly encryptionKey: kms.IKey;
   readonly dlq: sqs.Queue;
   readonly reviewQueue: sqs.Queue;
+  readonly reviewDlq: sqs.Queue;
   readonly stateMachine?: sfn.StateMachine;
   readonly lambdaFunctions?: Record<string, lambda.Function>;
 }
@@ -62,5 +63,19 @@ export class MonitoringConstruct extends Construct {
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
     reviewAlarm.addAlarmAction(new cloudwatch_actions.SnsAction(this.reviewAlertTopic));
+
+    // Alarm: Review DLQ has messages — PHI messages that failed all review queue delivery attempts
+    const reviewDlqAlarm = new cloudwatch.Alarm(this, 'ReviewDlqMessagesAlarm', {
+      alarmName: 'eob-extractor-review-dlq-messages',
+      alarmDescription: 'EOB Extractor review DLQ has messages — PHI messages failed delivery',
+      metric: props.reviewDlq.metricApproximateNumberOfMessagesVisible({
+        period: cdk.Duration.minutes(5),
+        statistic: 'Sum',
+      }),
+      threshold: 1,
+      evaluationPeriods: 1,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    reviewDlqAlarm.addAlarmAction(new cloudwatch_actions.SnsAction(this.opsAlertTopic));
   }
 }
