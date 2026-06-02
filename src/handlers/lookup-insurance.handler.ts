@@ -4,7 +4,7 @@ import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 import { logEvent, logError } from '../infrastructure/logging/audit-logger';
 import type { EobExtractionResponse } from '../application/schemas/eob-extraction.schema';
 
-const CONTACTS_TABLE = process.env.CONTACTS_TABLE_NAME ?? 'Insurance-Arbitration-contacts';
+const CONTACTS_TABLE = process.env.CONTACTS_TABLE_NAME ?? '';
 const CONTACTS_GSI = 'GSI-InsuranceName-LocationState';
 
 export interface LookupInsuranceDeps {
@@ -82,6 +82,8 @@ export function createHandler(deps: LookupInsuranceDeps) {
     const { correlationId, taskId, key } = event;
     const extracted = event.validatedExtraction;
 
+    // insurance_name is the insurer's organizational name (e.g. "Blue Cross Blue Shield"),
+    // not an individual identifier — logging it is intentional and does not constitute PHI.
     logEvent(correlationId, 'lookup_insurance_start', 'INFO', {
       taskId,
       insuranceName: extracted.insurance_name,
@@ -124,6 +126,8 @@ export function createHandler(deps: LookupInsuranceDeps) {
                 locationState: extracted.location_state,
                 s3Key: key,
                 missingFields: event.missingFields,
+                // These are the insurer's arbitration department contact fields,
+                // not patient data — safe to include in operational SNS notifications.
                 extractedFields: {
                   address: extracted.address,
                   city: extracted.city,
@@ -219,6 +223,7 @@ const snsClient = new SNSClient({});
 
 export const handler = createHandler({
   queryContact: async (insuranceName, locationState) => {
+    if (!CONTACTS_TABLE) throw new Error('CONTACTS_TABLE_NAME env var is required');
     const result = await ddbClient.send(new QueryCommand({
       TableName: CONTACTS_TABLE,
       IndexName: CONTACTS_GSI,
@@ -228,6 +233,7 @@ export const handler = createHandler({
     return result.Items?.[0] as Record<string, unknown> | undefined;
   },
   createContact: async (item) => {
+    if (!CONTACTS_TABLE) throw new Error('CONTACTS_TABLE_NAME env var is required');
     await ddbClient.send(new PutCommand({
       TableName: CONTACTS_TABLE,
       Item: item,
