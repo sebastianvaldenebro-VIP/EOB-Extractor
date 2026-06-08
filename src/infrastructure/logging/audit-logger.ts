@@ -107,7 +107,7 @@ export function logExtraction(params: ExtractionLogParams): void {
     status: params.status,
     confidenceScore: params.confidenceScore,
     processingDurationMs: params.processingDurationMs,
-    s3Key: params.s3Key,
+    s3Key: sanitizeS3Key(params.s3Key),
     taskId: params.taskId,
   };
   emit(entry);
