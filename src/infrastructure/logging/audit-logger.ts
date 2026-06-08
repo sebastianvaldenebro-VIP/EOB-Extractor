@@ -62,6 +62,10 @@ const PHI_FIELDS = [
 function now(): string {
   return new Date().toISOString();
 }
+function sanitizeS3Key(key: string): string {
+  const lastSlash = key.lastIndexOf('/');
+  return lastSlash >= 0 ? `${key.slice(0, lastSlash + 1)}*` : '*';
+}
 
 /**
  * Scrub potential PHI from an error message.
@@ -103,7 +107,7 @@ export function logExtraction(params: ExtractionLogParams): void {
     status: params.status,
     confidenceScore: params.confidenceScore,
     processingDurationMs: params.processingDurationMs,
-    s3Key: params.s3Key,
+    s3Key: sanitizeS3Key(params.s3Key),
     taskId: params.taskId,
   };
   emit(entry);
@@ -120,7 +124,7 @@ export function logError(params: ErrorLogParams): void {
     event: 'eob_extraction_error',
     errorName: params.errorName,
     errorMessage: sanitizeErrorMessage(params.errorMessage),
-    ...(params.s3Key && { s3Key: params.s3Key }),
+    ...(params.s3Key && { s3Key: sanitizeS3Key(params.s3Key) }),
     ...(params.taskId && { taskId: params.taskId }),
   };
   emit(entry);
@@ -140,6 +144,8 @@ export function logEvent(
   for (const [key, value] of Object.entries(details)) {
     if (PHI_FIELDS.includes(key.toLowerCase())) {
       safeDetails[key] = '[REDACTED]';
+    } else if (key === 's3Key' && typeof value === 'string') {
+      safeDetails[key] = sanitizeS3Key(value);
     } else {
       safeDetails[key] = value;
     }
