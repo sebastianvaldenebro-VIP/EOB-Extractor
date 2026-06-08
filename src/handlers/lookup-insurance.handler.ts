@@ -82,11 +82,7 @@ export function createHandler(deps: LookupInsuranceDeps) {
     const { correlationId, taskId, key } = event;
     const extracted = event.validatedExtraction;
 
-    logEvent(correlationId, 'lookup_insurance_start', 'INFO', {
-      taskId,
-      insuranceName: extracted.insurance_name,
-      locationState: extracted.location_state,
-    });
+    logEvent(correlationId, 'lookup_insurance_start', 'INFO', { taskId });
 
     try {
       const notifyTopicArn = process.env.NOTIFY_TOPIC_ARN ?? '';
@@ -137,11 +133,7 @@ export function createHandler(deps: LookupInsuranceDeps) {
             );
           }
 
-          logEvent(correlationId, 'lookup_insurance_new', 'INFO', {
-            taskId,
-            insuranceName: extracted.insurance_name,
-            locationState: extracted.location_state,
-          });
+          logEvent(correlationId, 'lookup_insurance_new', 'INFO', { taskId });
         } catch (putError: unknown) {
           if (!(putError instanceof ConditionalCheckFailedException)) throw putError;
           // Concurrent execution already wrote this contact — treat as no-op
@@ -174,7 +166,6 @@ export function createHandler(deps: LookupInsuranceDeps) {
 
         logEvent(correlationId, 'lookup_insurance_mismatch', 'WARN', {
           taskId,
-          insuranceName: extracted.insurance_name,
           mismatchCount: mismatches.length,
         });
 
@@ -186,11 +177,7 @@ export function createHandler(deps: LookupInsuranceDeps) {
         };
       }
 
-      logEvent(correlationId, 'lookup_insurance_match', 'INFO', {
-        taskId,
-        insuranceName: extracted.insurance_name,
-        existingInsuranceKey: existingContact.Insurance,
-      });
+      logEvent(correlationId, 'lookup_insurance_match', 'INFO', { taskId });
 
       return {
         ...event,
