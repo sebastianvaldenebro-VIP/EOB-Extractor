@@ -83,6 +83,23 @@ export function createExtractionStateMachine(
   const matchGoodToGo = new sfn.Succeed(scope, 'MatchGoodToGo', {
     comment: 'Insurance contact matched — task is good to go',
   });
+  // Terminal failure state for unhandled Lambda errors.
+  // Without this, SFN executions fail with opaque "States.Runtime" errors and
+  // no structured error info is captured in the execution history.
+  const pipelineFailed = new sfn.Fail(scope, 'PipelineFailed', {
+    comment: 'Unhandled error — see SFN execution history for error/cause detail',
+  });
+
+  // Route all unhandled Lambda errors to PipelineFailed.
+  // addRetry (on classifyEob/extractEob) takes precedence for matching errors;
+  // addCatch only fires after retries are exhausted or for non-retried errors.
+  const allTasks = [
+    validatePdfTask, classifyEobTask, extractEobTask, validateDataTask,
+    lookupInsuranceTask, storeExtractedTask, storeReviewTask, storeFailedTask,
+  ];
+  for (const task of allTasks) {
+    task.addCatch(pipelineFailed, { errors: ['States.ALL'] });
+  }
 
   const isPdfValid = new sfn.Choice(scope, 'IsPDFValid')
     .when(sfn.Condition.booleanEquals('$.valid', false), pdfInvalid)

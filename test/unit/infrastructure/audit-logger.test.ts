@@ -97,7 +97,7 @@ describe('audit-logger', () => {
       const output = JSON.parse(consoleSpy.mock.calls[0][0] as string);
       expect(output.errorMessage).toBe('Connection timeout after 30s');
       expect(output.level).toBe('ERROR');
-      expect(output.s3Key).toBe('clickup/TASK-1/eob.pdf');
+      expect(output.s3Key).toBe('clickup/TASK-1/*'); // sanitizeS3Key strips filename
     });
   });
 
