@@ -12,7 +12,7 @@ export class EobExtractorStack extends cdk.Stack {
 
     // Get config from CDK context (varies per environment)
     const bucketName = this.node.tryGetContext('bucketName') ?? 'bucket-specialops-sandbox';
-    const contactsTableName = this.node.tryGetContext('contactsTable') ?? 'Insurance-Arbitration-contacts';
+    const contactsTableName = this.node.tryGetContext('contactsTable') ?? 'Insurance-Arbitration-Contacts';
     const environment = this.node.tryGetContext('environment') ?? 'sandbox';
     const isProd = environment === 'production';
 
@@ -32,6 +32,7 @@ export class EobExtractorStack extends cdk.Stack {
       encryptionKey: storage.auditKey,
       dlq: queuing.dlq,
       reviewQueue: queuing.reviewQueue,
+      reviewDlq: queuing.reviewDlq,
     });
 
     // Extraction: Step Functions + all Lambdas + wiring
