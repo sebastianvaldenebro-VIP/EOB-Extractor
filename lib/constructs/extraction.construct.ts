@@ -36,11 +36,17 @@ export class ExtractionConstruct extends Construct {
 
     const handlersPath = path.join(__dirname, '../../src/handlers');
 
+    const lambdaLogGroup = new logs.LogGroup(this, 'LambdaLogGroup', {
+      logGroupName: '/aws/lambda/eob-extractor',
+      retention: logs.RetentionDays.SIX_YEARS,
+      encryptionKey: props.auditKey,
+    });
+
     const sharedLambdaProps: Partial<nodejs.NodejsFunctionProps> = {
       runtime: lambda.Runtime.NODEJS_20_X,
       architecture: lambda.Architecture.ARM_64,
       tracing: lambda.Tracing.ACTIVE,
-      logRetention: logs.RetentionDays.SIX_YEARS,
+      logGroup: lambdaLogGroup,
       bundling: {
         minify: true,
         sourceMap: true,
