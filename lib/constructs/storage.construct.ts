@@ -100,8 +100,9 @@ export class StorageConstruct extends Construct {
     });
 
     // GSI: Query by status (pending reviews, failures)
-    // NOTE: ProjectionType.ALL copies rawExtractionJson into the index (cost overhead).
-    // Changing to INCLUDE requires GSI recreation under a new name — deferred migration.
+    // ProjectionType.ALL copies rawExtractionJson into the index (cost overhead). INCLUDE
+    // migration deferred — DynamoDB requires delete+recreate under a new index name (a
+    // two-deploy operation). At current volume this is not cost-relevant.
     this.extractionsTable.addGlobalSecondaryIndex({
       indexName: 'GSI-Status',
       partitionKey: { name: 'status', type: dynamodb.AttributeType.STRING },
@@ -110,8 +111,8 @@ export class StorageConstruct extends Construct {
     });
 
     // GSI: Lookup by claim number
-    // NOTE: 'claimNumber' attribute is not currently written by any handler — index is empty.
-    // NOTE: ProjectionType.ALL — deferred migration to INCLUDE (same reason as GSI-Status).
+    // NOTE: 'claimNumber' is not populated by any handler yet — this index is currently inert.
+    // When the field is populated, migrate to INCLUDE with the two-deploy strategy (see GSI-Status).
     this.extractionsTable.addGlobalSecondaryIndex({
       indexName: 'GSI-ClaimNumber',
       partitionKey: { name: 'claimNumber', type: dynamodb.AttributeType.STRING },
@@ -120,8 +121,8 @@ export class StorageConstruct extends Construct {
     });
 
     // GSI: Analytics by insurer
-    // NOTE: items use 'insuranceName' (not 'insurerName') — index is empty until aligned.
-    // NOTE: ProjectionType.ALL — deferred migration to INCLUDE (same reason as GSI-Status).
+    // NOTE: index is currently inert — items write 'insuranceName', not 'insurerName';
+    // empty until the attribute names are aligned. Migrate to INCLUDE when populated (see GSI-Status).
     this.extractionsTable.addGlobalSecondaryIndex({
       indexName: 'GSI-Insurer',
       partitionKey: { name: 'insurerName', type: dynamodb.AttributeType.STRING },

@@ -33,7 +33,11 @@ export interface ErrorLogParams {
 // ---------------------------------------------------------------------------
 // PHI field names that must NEVER appear in logs
 // ---------------------------------------------------------------------------
-
+// Scope: covers actual PHI fields present in this system (patientName, memberId
+// and common aliases). HIPAA Safe Harbor has 18 categories; the remaining ones
+// (fax, MRN, health-plan ID, biometrics, URLs, IPs, etc.) are not part of the
+// EOB extraction schema and none of the current logEvent() callers pass them.
+// Expand this list if the schema or callers change to include patient identifiers.
 const PHI_FIELDS = [
   'patientname',
   'patient_name',

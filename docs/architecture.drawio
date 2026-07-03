@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="11" value="EOB Extractor — Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" vertex="1" edge="0">
+      <mxGeometry x="600" y="10" width="400" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="12" value="S3
+bucket-specialops
+(clickup/*.pdf)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#3F8624;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="60" y="100" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="13" value="SQS
+eob-extractor-ingest" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.sqs;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#FF4F8B;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="220" y="100" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="14" value="SQS
+eob-extractor-dlq" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.sqs;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#FF4F8B;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="220" y="220" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="15" value="λ eob-trigger
+256MB | 10s | concur=2" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#ED7100;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="400" y="100" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="16" value="KMS
+alias/eob-extractor/phi" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.key_management_service;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#DD344C;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="60" y="380" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="17" value="KMS
+alias/eob-extractor/audit" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.key_management_service;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#DD344C;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="200" y="380" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="18" value="Step Functions: eob-extraction-pipeline
+(STANDARD | 15-min timeout | X-Ray | KMS-encrypted logs)" style="points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],[1,1],[0.75,1],[0.5,1],[0.25,1],[0,1],[0,0.75],[0,0.5],[0,0.25]];shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud_alt;strokeColor=#232F3E;fillColor=none;verticalLabelPosition=top;verticalAlign=bottom;align=center;spacingTop=25;dashed=0;fontStyle=1;fontSize=11;" vertex="1" edge="0">
+      <mxGeometry x="360" y="230" width="980" height="360" as="geometry"/>
+    </mxCell>
+    <mxCell id="19" value="eob-extraction-pipeline" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.step_functions;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#E7157B;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="380" y="260" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="20" value="λ eob-validate-pdf
+512MB | 30s" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#ED7100;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="840" y="260" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="21" value="λ eob-classify-eob
+512MB | 60s | c=10" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#ED7100;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="940" y="260" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="22" value="λ eob-extract-eob
+1024MB | 300s | c=10" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#ED7100;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="1040" y="260" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="23" value="λ eob-validate-data
+256MB | 30s" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#ED7100;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="1140" y="260" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="24" value="λ eob-lookup-insurance
+512MB | 30s" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#ED7100;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="1240" y="260" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="25" value="λ eob-store-result
+512MB | 30s" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#ED7100;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="1340" y="260" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="26" value="Amazon Bedrock
+Haiku / Sonnet chains" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#01A88D;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="840" y="100" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="27" value="DynamoDB
+Insurance-Arbitration-contacts
+(external, pre-existing)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.dynamodb;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#C7131F;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="1060" y="260" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="28" value="DynamoDB
+eob-extractions
+PITR | Streams | KMS" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.dynamodb;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#C7131F;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="1060" y="380" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="29" value="SQS
+eob-extractor-review
+(TD-005: no DLQ)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.sqs;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#FF4F8B;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="1060" y="480" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="30" value="SNS
+eob-extractor-ops-alerts" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.sns;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#E7157B;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="1200" y="380" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="31" value="SNS
+eob-extractor-review-alerts" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.sns;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#E7157B;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="1200" y="260" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="32" value="S3 eob-extractor-audit-{acct}
+Object Lock COMPLIANCE | 6yr" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#3F8624;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="340" y="640" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="33" value="/aws/stepfunctions/eob-extractor
+/aws/lambda/eob-extractor" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;labelBackgroundColor=none;sketch=0;fontStyle=1;fillColor=#3F8624;strokeColor=none;fontColor=#232F3E;fontSize=10;" vertex="1" edge="0">
+      <mxGeometry x="340" y="540" width="64" height="64" as="geometry"/>
+    </mxCell>
+    <mxCell id="34" value="ObjectCreated
+clickup/*.pdf" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="12" target="13" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="35" value="SQS event
+batch=1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="13" target="15" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="36" value="DLQ
+(3 retries)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="13" target="14" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="37" value="StartExecution
+{bucket,key,taskId,correlationId}" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="15" target="19" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="38" value="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="19" target="20" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="39" value="2 valid=true" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="20" target="21" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="40" value="3 isEob=true" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="21" target="22" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="41" value="4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="22" target="23" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="42" value="5 score&gt;=0.50" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="23" target="24" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="43" value="6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="24" target="25" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="44" value="CLASSIFY_CHAIN
+Haiku→Sonnet" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="21" target="26" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="45" value="EXTRACT_CHAIN
+Sonnet4.6→Sonnet→Haiku" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="22" target="26" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="46" value="Query/PutItem
+GSI-InsuranceName-LocationState" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="24" target="27" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="47" value="PutItem
+KMS encrypted" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="25" target="28" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="48" value="REVIEW_PENDING
+extractions" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="25" target="29" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="49" value="New/Mismatch
+alert" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="24" target="31" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="50" value="Operational
+alerts" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="25" target="30" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="51" value="ALL logs
+(no execution data)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="19" target="33" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="52" value="Export
+Object Lock 6yr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="33" target="32" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="53" value="Encrypts" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="16" target="28" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="54" value="Encrypts" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" vertex="0" edge="1" source="17" target="32" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
