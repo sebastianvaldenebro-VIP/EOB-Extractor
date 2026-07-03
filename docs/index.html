@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EOB Extractor — Documentation</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a1f2e 0%, #16213e 100%);
+      border-bottom: 1px solid #2d3748;
+      padding: 2rem 2.5rem;
+    }
+
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #f7fafc;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      margin-top: 0.4rem;
+      color: #718096;
+      font-size: 0.9rem;
+    }
+
+    .badge-row {
+      display: flex;
+      gap: 0.6rem;
+      margin-top: 0.9rem;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.2rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-green  { background: #1a4731; color: #68d391; border: 1px solid #276749; }
+    .badge-yellow { background: #744210; color: #f6e05e; border: 1px solid #975a16; }
+    .badge-red    { background: #742a2a; color: #fc8181; border: 1px solid #9b2c2c; }
+    .badge-blue   { background: #1a365d; color: #90cdf4; border: 1px solid #2a4a7f; }
+    .badge-purple { background: #322659; color: #d6bcfa; border: 1px solid #44337a; }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      gap: 2rem;
+    }
+
+    /* Sidebar */
+    aside {
+      position: sticky;
+      top: 1.5rem;
+      align-self: start;
+    }
+
+    aside h2 {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #718096;
+      margin-bottom: 0.75rem;
+    }
+
+    .nav-section { margin-bottom: 1.5rem; }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.45rem 0.75rem;
+      border-radius: 0.4rem;
+      color: #a0aec0;
+      text-decoration: none;
+      font-size: 0.875rem;
+      transition: background 0.15s, color 0.15s;
+      margin-bottom: 0.1rem;
+    }
+
+    .nav-link:hover {
+      background: #1a202c;
+      color: #f7fafc;
+    }
+
+    .nav-link .icon { font-size: 1rem; flex-shrink: 0; }
+
+    .audit-summary {
+      background: #1a202c;
+      border: 1px solid #2d3748;
+      border-radius: 0.6rem;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+
+    .audit-summary h3 {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #718096;
+      margin-bottom: 0.75rem;
+    }
+
+    .finding-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.3rem 0;
+      border-bottom: 1px solid #2d3748;
+      font-size: 0.8rem;
+    }
+
+    .finding-row:last-child { border-bottom: none; }
+
+    /* Card grid */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .card {
+      background: #1a202c;
+      border: 1px solid #2d3748;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .card:hover {
+      border-color: #4a5568;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+    }
+
+    .card-icon {
+      font-size: 1.75rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #f7fafc;
+    }
+
+    .card p {
+      font-size: 0.825rem;
+      color: #718096;
+      line-height: 1.5;
+    }
+
+    .card .tag {
+      margin-top: auto;
+      padding-top: 0.75rem;
+      font-size: 0.7rem;
+      color: #4a5568;
+      font-family: ui-monospace, "Cascadia Code", monospace;
+    }
+
+    /* Architecture section */
+    .arch-section {
+      margin-top: 2rem;
+      background: #1a202c;
+      border: 1px solid #2d3748;
+      border-radius: 0.75rem;
+      overflow: hidden;
+    }
+
+    .arch-section-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #2d3748;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .arch-section-header h2 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+
+    .arch-section-body {
+      padding: 1.5rem;
+    }
+
+    .pipeline-steps {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+    }
+
+    .step {
+      flex-shrink: 0;
+      background: #2d3748;
+      border: 1px solid #4a5568;
+      border-radius: 0.5rem;
+      padding: 0.6rem 0.9rem;
+      font-size: 0.78rem;
+      text-align: center;
+      min-width: 110px;
+    }
+
+    .step .fn-name {
+      font-family: ui-monospace, "Cascadia Code", monospace;
+      color: #90cdf4;
+      font-size: 0.72rem;
+    }
+
+    .step .fn-meta {
+      color: #718096;
+      font-size: 0.68rem;
+      margin-top: 0.2rem;
+    }
+
+    .arrow {
+      color: #4a5568;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+      padding: 0 0.25rem;
+    }
+
+    /* Open findings table */
+    .findings-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.825rem;
+      margin-top: 1rem;
+    }
+
+    .findings-table th {
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #718096;
+      border-bottom: 1px solid #2d3748;
+    }
+
+    .findings-table td {
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid #1a202c;
+      vertical-align: top;
+    }
+
+    .findings-table tr:last-child td { border-bottom: none; }
+
+    .sev-high   { color: #fc8181; font-weight: 600; }
+    .sev-medium { color: #f6e05e; font-weight: 600; }
+    .sev-low    { color: #68d391; font-weight: 600; }
+    .status-fixed { color: #68d391; }
+    .status-open  { color: #fc8181; }
+
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      color: #4a5568;
+      font-size: 0.75rem;
+      border-top: 1px solid #1a202c;
+    }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+      aside { position: static; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>EOB Extractor</h1>
+  <p>Serverless pipeline — Explanation of Benefits document processing</p>
+  <div class="badge-row">
+    <span class="badge badge-blue">Node.js 20 + TypeScript</span>
+    <span class="badge badge-purple">AWS Lambda (7)</span>
+    <span class="badge badge-purple">Step Functions</span>
+    <span class="badge badge-blue">Amazon Bedrock</span>
+    <span class="badge badge-red">HIPAA</span>
+    <span class="badge badge-green">CDK 2.1112.0</span>
+    <span class="badge badge-yellow">2 Open HIGH findings</span>
+  </div>
+</header>
+
+<main>
+  <!-- Sidebar -->
+  <aside>
+    <div class="nav-section">
+      <h2>Documents</h2>
+      <a class="nav-link" href="TECHNICAL_HANDOFF.md"><span class="icon">📋</span> Technical Handoff</a>
+      <a class="nav-link" href="ARCHITECTURE.md"><span class="icon">🏗️</span> Architecture</a>
+      <a class="nav-link" href="DATA_DICTIONARY.md"><span class="icon">🗄️</span> Data Dictionary</a>
+      <a class="nav-link" href="INTEGRATION_CONTRACTS.md"><span class="icon">🔗</span> Integration Contracts</a>
+      <a class="nav-link" href="DEPENDENCY_MANIFEST.md"><span class="icon">📦</span> Dependency Manifest</a>
+      <a class="nav-link" href="RUNBOOKS.md"><span class="icon">📖</span> Runbooks</a>
+      <a class="nav-link" href="NON_TECHNICAL_GUIDE.md"><span class="icon">💬</span> Non-Technical Guide</a>
+      <a class="nav-link" href="IAM_REFERENCE.md"><span class="icon">🔑</span> IAM Reference</a>
+    </div>
+
+    <div class="nav-section">
+      <h2>Diagrams</h2>
+      <a class="nav-link" href="architecture.drawio"><span class="icon">📐</span> architecture.drawio</a>
+    </div>
+
+    <div class="audit-summary">
+      <h3>Audit Findings</h3>
+      <div class="finding-row">
+        <span>#001 S3 PHI in keys</span>
+        <span class="status-fixed">FIXED</span>
+      </div>
+      <div class="finding-row">
+        <span class="sev-high">#002 Lambda not VPC-attached</span>
+        <span class="status-open">OPEN</span>
+      </div>
+      <div class="finding-row">
+        <span class="sev-medium">#004 PHI blocklist incomplete</span>
+        <span class="status-open">OPEN</span>
+      </div>
+      <div class="finding-row">
+        <span class="sev-medium">#005 Review queue no DLQ</span>
+        <span class="status-open">OPEN</span>
+      </div>
+      <div class="finding-row">
+        <span class="sev-medium">#006 Bedrock no user identity log</span>
+        <span class="status-open">OPEN</span>
+      </div>
+      <div class="finding-row">
+        <span class="sev-medium">#007 Contacts table no PITR audit</span>
+        <span class="status-open">OPEN</span>
+      </div>
+      <div class="finding-row">
+        <span class="sev-low">#008 ULID not KMS-seeded</span>
+        <span class="status-open">OPEN</span>
+      </div>
+      <div class="finding-row">
+        <span class="sev-low">#009 bucket-specialops no IaC</span>
+        <span class="status-open">OPEN</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <div>
+    <!-- Card grid -->
+    <div class="cards">
+      <a class="card" href="TECHNICAL_HANDOFF.md">
+        <div class="card-icon">📋</div>
+        <h3>Technical Handoff</h3>
+        <p>Complete resource inventory, environment variables, S3 trigger paths, confidence thresholds, CDK deploy commands, and open audit findings.</p>
+        <div class="tag">TECHNICAL_HANDOFF.md</div>
+      </a>
+
+      <a class="card" href="ARCHITECTURE.md">
+        <div class="card-icon">🏗️</div>
+        <h3>Architecture</h3>
+        <p>C4 diagrams (Mermaid): system context, container view, full Step Functions flow, Bedrock fallback chains, and PHI data boundary.</p>
+        <div class="tag">ARCHITECTURE.md</div>
+      </a>
+
+      <a class="card" href="DATA_DICTIONARY.md">
+        <div class="card-icon">🗄️</div>
+        <h3>Data Dictionary</h3>
+        <p>Full field schema for both DynamoDB tables, all 4 GSIs, Zod extraction schema, S3 key structure, and PHI field blocklist.</p>
+        <div class="tag">DATA_DICTIONARY.md</div>
+      </a>
+
+      <a class="card" href="INTEGRATION_CONTRACTS.md">
+        <div class="card-icon">🔗</div>
+        <h3>Integration Contracts</h3>
+        <p>Exact JSON schemas for every integration boundary: SQS events, SFN inter-Lambda state, Bedrock request/response, SNS notifications, and audit log format.</p>
+        <div class="tag">INTEGRATION_CONTRACTS.md</div>
+      </a>
+
+      <a class="card" href="DEPENDENCY_MANIFEST.md">
+        <div class="card-icon">📦</div>
+        <h3>Dependency Manifest</h3>
+        <p>All npm dependencies with versions and purpose. AWS SDK packages, Bedrock model IDs, external table and bucket dependencies, CDK context keys.</p>
+        <div class="tag">DEPENDENCY_MANIFEST.md</div>
+      </a>
+
+      <a class="card" href="RUNBOOKS.md">
+        <div class="card-icon">📖</div>
+        <h3>Runbooks</h3>
+        <p>Step-by-step playbooks: SFN execution failure, DLQ backlog, Bedrock timeout, ingest queue blocked, PITR restore, credential rotation, review queue backlog.</p>
+        <div class="tag">RUNBOOKS.md</div>
+      </a>
+
+      <a class="card" href="NON_TECHNICAL_GUIDE.md">
+        <div class="card-icon">💬</div>
+        <h3>Non-Technical Guide</h3>
+        <p>Plain-language explanation of what the system does, what data it processes, HIPAA compliance posture, and escalation paths. For ops, compliance, and legal.</p>
+        <div class="tag">NON_TECHNICAL_GUIDE.md</div>
+      </a>
+
+      <a class="card" href="IAM_REFERENCE.md">
+        <div class="card-icon">🔑</div>
+        <h3>IAM Reference</h3>
+        <p>Per-Lambda IAM role grants, Step Functions execution role, KMS key policies, S3 bucket permissions, SQS queue encryption, and IAM audit checklist.</p>
+        <div class="tag">IAM_REFERENCE.md</div>
+      </a>
+    </div>
+
+    <!-- Pipeline visualization -->
+    <div class="arch-section">
+      <div class="arch-section-header">
+        <h2>Pipeline — eob-extraction-pipeline (Step Functions STANDARD)</h2>
+        <span class="badge badge-blue">15-min timeout &nbsp;|&nbsp; X-Ray &nbsp;|&nbsp; KMS logs</span>
+      </div>
+      <div class="arch-section-body">
+        <div class="pipeline-steps">
+          <div class="step">
+            <div>SQS</div>
+            <div class="fn-name">eob-extractor-ingest</div>
+            <div class="fn-meta">S3 ObjectCreated</div>
+          </div>
+          <div class="arrow">&#8594;</div>
+          <div class="step">
+            <div>Lambda</div>
+            <div class="fn-name">eob-trigger</div>
+            <div class="fn-meta">256MB | 10s | c=2</div>
+          </div>
+          <div class="arrow">&#8594;</div>
+          <div class="step">
+            <div>Lambda</div>
+            <div class="fn-name">eob-validate-pdf</div>
+            <div class="fn-meta">512MB | 30s</div>
+          </div>
+          <div class="arrow">&#8594;</div>
+          <div class="step">
+            <div>Lambda</div>
+            <div class="fn-name">eob-classify-eob</div>
+            <div class="fn-meta">512MB | 60s | c=10</div>
+          </div>
+          <div class="arrow">&#8594;</div>
+          <div class="step">
+            <div>Lambda</div>
+            <div class="fn-name">eob-extract-eob</div>
+            <div class="fn-meta">1024MB | 300s | c=10</div>
+          </div>
+          <div class="arrow">&#8594;</div>
+          <div class="step">
+            <div>Lambda</div>
+            <div class="fn-name">eob-validate-data</div>
+            <div class="fn-meta">256MB | 30s</div>
+          </div>
+          <div class="arrow">&#8594;</div>
+          <div class="step">
+            <div>Lambda</div>
+            <div class="fn-name">eob-lookup-insurance</div>
+            <div class="fn-meta">512MB | 30s</div>
+          </div>
+          <div class="arrow">&#8594;</div>
+          <div class="step">
+            <div>Lambda</div>
+            <div class="fn-name">eob-store-result</div>
+            <div class="fn-meta">512MB | 30s</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Open findings table -->
+    <div class="arch-section" style="margin-top: 1.5rem;">
+      <div class="arch-section-header">
+        <h2>Open Audit Findings</h2>
+        <span class="badge badge-yellow">7 open &nbsp;|&nbsp; 1 fixed</span>
+      </div>
+      <div class="arch-section-body">
+        <table class="findings-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Severity</th>
+              <th>Title</th>
+              <th>Status</th>
+              <th>Runbook</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>#001</td>
+              <td class="sev-high">HIGH</td>
+              <td>S3 PatientName in object keys</td>
+              <td class="status-fixed">FIXED — audit/2026-06-04</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>#002</td>
+              <td class="sev-high">HIGH</td>
+              <td>Lambda functions not VPC-attached</td>
+              <td class="status-open">OPEN</td>
+              <td>Engineering sprint</td>
+            </tr>
+            <tr>
+              <td>#004</td>
+              <td class="sev-medium">MEDIUM</td>
+              <td>PHI blocklist incomplete in sanitizers</td>
+              <td class="status-open">OPEN</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>#005</td>
+              <td class="sev-medium">MEDIUM</td>
+              <td>eob-extractor-review queue has no DLQ</td>
+              <td class="status-open">OPEN</td>
+              <td><a href="RUNBOOKS.md" style="color:#90cdf4;">RB-007</a></td>
+            </tr>
+            <tr>
+              <td>#006</td>
+              <td class="sev-medium">MEDIUM</td>
+              <td>Bedrock inference not logged with user identity</td>
+              <td class="status-open">OPEN</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>#007</td>
+              <td class="sev-medium">MEDIUM</td>
+              <td>Insurance-Arbitration-contacts read without PITR/audit trail</td>
+              <td class="status-open">OPEN</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>#008</td>
+              <td class="sev-low">LOW</td>
+              <td>ULID generation not seeded from KMS</td>
+              <td class="status-open">OPEN</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>#009</td>
+              <td class="sev-low">LOW</td>
+              <td>No IaC for bucket-specialops (pre-existing, manual)</td>
+              <td class="status-open">OPEN</td>
+              <td>—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  EOB Extractor &mdash; Documentation Suite &mdash; Generated 2026-06-08 &mdash; Compliance: HIPAA
+</footer>
+
+</body>
+</html>
