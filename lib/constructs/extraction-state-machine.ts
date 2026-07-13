@@ -102,7 +102,7 @@ export function createExtractionStateMachine(
   // addCatch only fires after retries are exhausted or for non-retried errors.
   const allTasks = [
     validatePdfTask, classifyEobTask, extractEobTask, validateDataTask,
-    lookupInsuranceTask, storeExtractedTask, storeReviewTask, storeFailedTask,
+    lookupInsuranceTask, storeExtractedTask, storeReviewTask, storeFailedTask, storeInvalidTask,
   ];
   for (const task of allTasks) {
     task.addCatch(pipelineFailed, { errors: ['States.ALL'] });
