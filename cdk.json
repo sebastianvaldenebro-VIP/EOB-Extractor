@@ -26,7 +26,8 @@
       "production": {
         "bucketName": "bucket-specialops",
         "contactsTable": "Insurance-Arbitration-Contacts",
-        "environment": "production"
+        "environment": "production",
+        "sourceKmsKeyArn": "arn:aws:kms:us-east-1:165505826690:key/4ae0f1f9-a0e0-4d1a-8ff9-231bb18cadff"
       }
     },
     "@aws-cdk/aws-signer:signingProfileNamePassedToCfn": true,

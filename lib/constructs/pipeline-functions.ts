@@ -40,6 +40,7 @@ export function createPipelineFunctions(
   props.eobBucket.grantRead(validatePdfFn, 'clickup/*');
   props.eobBucket.grantPut(validatePdfFn, 'quarantine/*');
   props.phiKey.grantDecrypt(validatePdfFn);
+  props.sourceObjectKey?.grantDecrypt(validatePdfFn);
 
   const classifyEobFn = new nodejs.NodejsFunction(scope, 'ClassifyEobFn', {
     ...sharedProps,
@@ -53,6 +54,7 @@ export function createPipelineFunctions(
   });
   props.eobBucket.grantRead(classifyEobFn, 'clickup/*');
   props.phiKey.grantDecrypt(classifyEobFn);
+  props.sourceObjectKey?.grantDecrypt(classifyEobFn);
   classifyEobFn.addToRolePolicy(new iam.PolicyStatement({
     actions: ['bedrock:InvokeModel'],
     resources: [
@@ -79,6 +81,7 @@ export function createPipelineFunctions(
   });
   props.eobBucket.grantRead(extractEobFn, 'clickup/*');
   props.phiKey.grantDecrypt(extractEobFn);
+  props.sourceObjectKey?.grantDecrypt(extractEobFn);
   extractEobFn.addToRolePolicy(new iam.PolicyStatement({
     actions: ['bedrock:InvokeModel'],
     resources: [

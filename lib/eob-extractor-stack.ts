@@ -1,4 +1,5 @@
 import * as cdk from 'aws-cdk-lib/core';
+import * as kms from 'aws-cdk-lib/aws-kms';
 import { Construct } from 'constructs';
 import { StorageConstruct } from './constructs/storage.construct';
 import { QueuingConstruct } from './constructs/queuing.construct';
@@ -15,6 +16,31 @@ export class EobExtractorStack extends cdk.Stack {
     const contactsTableName = this.node.tryGetContext('contactsTable') ?? 'Insurance-Arbitration-Contacts';
     const environment = this.node.tryGetContext('environment') ?? 'sandbox';
     const isProd = environment === 'production';
+
+    // The source PDFs are written by SendClickUpAttachmentsToS3 (Arbitration
+    // stack), which passes its own SSE-KMS key and so overrides the bucket
+    // default. That key lives in another domain, so this stack has to be
+    // granted kms:Decrypt on it explicitly — the key policy already allows it,
+    // what was missing is the identity grant. Without it the whole pipeline
+    // fails at the first step that reads the object:
+    //
+    //   eob-validate-pdf is not authorized to perform: kms:Decrypt on
+    //   key/4ae0f1f9... because no identity-based policy allows the action
+    //
+    // (2026-08-10: 12 of 12 executions failing.) Optional on purpose — in
+    // sandbox the uploader writes with the bucket default key.
+    // OJO: el bloque `environments` de cdk.json NO lo resuelve CDK solo —
+    // tryGetContext('x') busca una clave de PRIMER nivel. Por eso el comando de
+    // deploy pasa bucketName/environment/contactsTable con -c. Poner el ARN solo
+    // dentro de environments.production lo dejaba invisible: el 2026-08-10 el
+    // deploy salio "exitoso" sin aplicar ni un statement de KMS.
+    // Se lee del bloque por entorno, y un -c explicito lo sobreescribe.
+    const envConfig = (this.node.tryGetContext('environments') ?? {})[environment] ?? {};
+    const sourceKmsKeyArn = (this.node.tryGetContext('sourceKmsKeyArn')
+      ?? envConfig.sourceKmsKeyArn) as string | undefined;
+    const sourceObjectKey = sourceKmsKeyArn
+      ? kms.Key.fromKeyArn(this, 'SourceObjectKey', sourceKmsKeyArn)
+      : undefined;
 
     // Storage: Import existing S3 bucket, create DynamoDB table, KMS keys
     const storage = new StorageConstruct(this, 'Storage', {
@@ -42,6 +68,7 @@ export class EobExtractorStack extends cdk.Stack {
       contactsTableName,
       phiKey: storage.phiKey,
       auditKey: storage.auditKey,
+      sourceObjectKey,
       ingestQueue: queuing.ingestQueue,
       reviewQueue: queuing.reviewQueue,
       dlq: queuing.dlq,

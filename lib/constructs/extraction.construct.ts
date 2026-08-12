@@ -21,6 +21,14 @@ export interface ExtractionConstructProps {
   readonly contactsTableName: string;
   readonly phiKey: kms.Key;
   readonly auditKey: kms.Key;
+  /**
+   * KMS key the SOURCE PDFs are encrypted with, when the uploader overrides the
+   * bucket default. Every function that READS an object from the bucket needs
+   * kms:Decrypt on it — granting only the first one moves the failure to the
+   * next step instead of fixing it. Undefined when the uploader uses the bucket
+   * default key (sandbox).
+   */
+  readonly sourceObjectKey?: kms.IKey;
   readonly ingestQueue: sqs.Queue;
   readonly reviewQueue: sqs.Queue;
   readonly dlq: sqs.Queue;
@@ -79,6 +87,7 @@ export class ExtractionConstruct extends Construct {
     this.stateMachine.grantStartExecution(triggerFn);
     props.extractionsTable.grantReadData(triggerFn);
     props.phiKey.grantDecrypt(triggerFn);
+    props.sourceObjectKey?.grantDecrypt(triggerFn);
 
     // 4. Event wiring: SQS → Trigger, S3 → SQS
     triggerFn.addEventSource(new lambdaEventSources.SqsEventSource(props.ingestQueue, {
