@@ -7,6 +7,32 @@ import { Construct } from 'constructs';
 import type { PipelineFunctions } from './pipeline-functions';
 
 /**
+ * Reintento para cuando Lambda rechaza la invocacion por concurrencia agotada.
+ *
+ * `retryOnServiceExceptions: true` NO cubre este error: el retrier que genera CDK
+ * lleva ClientExecutionTimeout, ServiceException, AWSLambdaException y
+ * SdkClientException, pero no TooManyRequestsException. Sin este retrier el 429
+ * no se reintenta y la ejecucion muere al primer rechazo — el 2026-08-11 un lote
+ * de ~56 ejecuciones simultaneas contra classify-eob y extract-eob, que tienen
+ * concurrencia reservada de 10, tumbo 14 ejecuciones asi.
+ *
+ * El presupuesto es deliberadamente largo (5+10+20+...+1280 ≈ 42 min) porque lo
+ * que hay que esperar es que DRENE la cola, no un error transitorio: con 10
+ * ranuras y extract-eob en timeout de 300s, un lote de 56 puede tardar media
+ * hora. No cuesta nada cuando no hay lote, porque solo entra si hay throttle.
+ *
+ * La alternativa —subir la concurrencia reservada— moveria el fallo a la cuota de
+ * Bedrock, que es un limite mas duro y menos controlable. El 10 es un guardian
+ * deliberado de esa cuota.
+ */
+const CONCURRENCIA_AGOTADA = {
+  errors: ['Lambda.TooManyRequestsException'],
+  maxAttempts: 9,
+  interval: cdk.Duration.seconds(5),
+  backoffRate: 2,
+};
+
+/**
  * Builds the Step Functions state machine definition and log group under the given scope.
  * scope MUST be the ExtractionConstruct itself to preserve CDK logical IDs.
  */
@@ -26,6 +52,7 @@ export function createExtractionStateMachine(
     outputPath: '$.Payload',
     retryOnServiceExceptions: true,
   });
+  classifyEobTask.addRetry(CONCURRENCIA_AGOTADA);
   classifyEobTask.addRetry({
     errors: ['AllModelsExhaustedException', 'ThrottlingException', 'ServiceUnavailableException'],
     maxAttempts: 3,
@@ -38,6 +65,7 @@ export function createExtractionStateMachine(
     outputPath: '$.Payload',
     retryOnServiceExceptions: true,
   });
+  extractEobTask.addRetry(CONCURRENCIA_AGOTADA);
   extractEobTask.addRetry({
     errors: ['AllModelsExhaustedException', 'ThrottlingException', 'ServiceUnavailableException'],
     maxAttempts: 3,
