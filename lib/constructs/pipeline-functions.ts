@@ -124,6 +124,18 @@ export function createPipelineFunctions(
       `arn:aws:dynamodb:${stack.region}:${stack.account}:table/${props.contactsTableName}/index/*`,
     ],
   }));
+  // La tabla de contactos esta cifrada con la CMK de la plataforma Arbitration
+  // (alias/hipaa-arbitration-cmk), que es la misma que cifra los objetos de
+  // origen. Los permisos de DynamoDB no bastan: sin este grant el Query falla
+  // con AccessDeniedException de KMS, no de DynamoDB — 11 ejecuciones asi el
+  // 2026-08-11, todas de este Lambda.
+  //
+  // Va Decrypt y GenerateDataKey porque tambien tiene PutItem: escribir en una
+  // tabla con CMK necesita generar la clave de datos, y otorgar solo Decrypt
+  // dejaria el mismo fallo en el camino de escritura.
+  props.sourceObjectKey?.grant(
+    lookupInsuranceFn, 'kms:Decrypt', 'kms:GenerateDataKey',
+  );
   props.reviewAlertTopic.grantPublish(lookupInsuranceFn);
 
   const storeResultFn = new nodejs.NodejsFunction(scope, 'StoreResultFn', {
